@@ -1,0 +1,6 @@
+@MangaWorkflow.OcelotAPIGateway.HuyNQ_HostAddress = http://localhost:5049
+
+GET {{MangaWorkflow.OcelotAPIGateway.HuyNQ_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

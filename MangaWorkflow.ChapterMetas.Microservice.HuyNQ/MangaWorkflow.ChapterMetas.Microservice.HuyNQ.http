@@ -1,0 +1,6 @@
+@MangaWorkflow.ChapterMetas.Microservice.HuyNQ_HostAddress = http://localhost:5098
+
+GET {{MangaWorkflow.ChapterMetas.Microservice.HuyNQ_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

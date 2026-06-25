@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="MangaWorkflow.BusinessObject.Shared.Models.HuyNQ/MangaWorkflow.BusinessObject.Shared.Models.HuyNQ.csproj" />
+  <Project Path="MangaWorkflow.ChapterMetas.Microservice.HuyNQ/MangaWorkflow.ChapterMetas.Microservice.HuyNQ.csproj" />
+  <Project Path="MangaWorkflow.Chapters.Microservice.HuyNQ/MangaWorkflow.Chapters.Microservice.HuyNQ.csproj" />
+  <Project Path="MangaWorkflow.OcelotAPIGateway.HuyNQ/MangaWorkflow.OcelotAPIGateway.HuyNQ.csproj" />
+</Solution>
