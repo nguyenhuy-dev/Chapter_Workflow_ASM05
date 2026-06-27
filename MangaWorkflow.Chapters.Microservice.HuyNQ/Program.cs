@@ -1,3 +1,7 @@
+using MassTransit;
+using Serilog;
+using Serilog.Sinks.Grafana.Loki;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,6 +10,37 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Host.ConfigureLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+});
+
+builder.Services.AddMassTransit(x =>
+{
+    x.AddBus(provider => Bus.Factory.CreateUsingRabbitMq(config =>
+    {
+        //config.UseHealthCheck(provider);
+        //config.Host(new Uri("rabbitmq://localhost:XXXX"), h =>
+        config.Host(new Uri("rabbitmq://localhost"), h =>
+        {
+            h.Username("guest");
+            h.Password("guest");
+        });
+    }));
+});
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.GrafanaLoki(
+        "http://localhost:3100",
+        labels: new[] { new LokiLabel { Key = "PRN232", Value = "SE1811" } }
+    )
+    .CreateLogger();
+builder.Host.UseSerilog();
 
 var app = builder.Build();
 

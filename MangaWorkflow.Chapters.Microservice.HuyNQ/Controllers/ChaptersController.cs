@@ -1,4 +1,5 @@
 ﻿using MangaWorkflow.BusinessObject.Shared.Models.HuyNQ;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 
@@ -12,8 +13,15 @@ namespace MangaWorkflow.Chapters.Microservice.HuyNQ.Controllers
     {
         private List<ChapterHuyNq> _chapters = [];
 
-        public ChaptersController()
+        private readonly IBus _bus;
+
+        private readonly ILogger _logger;
+
+        public ChaptersController(IBus bus, ILogger<ChaptersController> logger)
         {
+            _bus = bus;
+            _logger = logger;
+
             _chapters =
             [
                 new()
@@ -22,7 +30,18 @@ namespace MangaWorkflow.Chapters.Microservice.HuyNQ.Controllers
                     ChapterMetaHuynqId = 1,
                     Title = "Son Goku",
                     ChapterNumber = 3,
-
+                    ChapterMetaHuynq = new() {
+                        HuynqId = 1,
+                        Code = "101",
+                        Description = "Good"
+                    }
+                },
+                new()
+                {
+                    HuynqId = 2,
+                    ChapterMetaHuynqId = 1,
+                    Title = "Luffy",
+                    ChapterNumber = 4,
                 }
             ];
         }
@@ -43,9 +62,18 @@ namespace MangaWorkflow.Chapters.Microservice.HuyNQ.Controllers
 
         // POST api/<ChaptersController>
         [HttpPost]
-        public void Post([FromBody] ChapterHuyNq value)
+        public async Task Post([FromBody] ChapterHuyNq value)
         {
-            Console.WriteLine("Submit order: " + JsonSerializer.Serialize(value));
+            Uri uri = new("rabbitmq://localhost/chapterQueue");
+            var endPoint = await _bus.GetSendEndpoint(uri);
+            await endPoint.Send(value);
+
+            var msg = string.Format("{0}: PUBLISH the event to chapterQueue queue on RabbitMQ: {1}", DateTime.Now, JsonSerializer.Serialize(value));
+            _logger.LogInformation(msg);
+
+            Serilog.Log.Information(msg);
+
+            // Console.WriteLine("Submit order: " + JsonSerializer.Serialize(value));
         }
 
         // PUT api/<ChaptersController>/5

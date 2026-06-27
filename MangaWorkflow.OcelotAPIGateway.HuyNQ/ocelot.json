@@ -1,27 +1,27 @@
 {
   "Routes": [
     {
-      "DownstreamPathTemplate": "/api/Orders",
+      "DownstreamPathTemplate": "/api/Chapters",
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7241
+          "Port": 7039
         }
       ],
-      "UpstreamPathTemplate": "/gateway/Orders",
+      "UpstreamPathTemplate": "/gateway/Chapters",
       "UpstreamHttpMethod": [ "POST", "PUT", "GET" ]
     },
     {
-      "DownstreamPathTemplate": "/api/Products",
+      "DownstreamPathTemplate": "/api/ChapterMetas",
       "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 7190
+          "Port": 7072
         }
       ],
-      "UpstreamPathTemplate": "/gateway/Products",
+      "UpstreamPathTemplate": "/gateway/ChapterMetas",
       "UpstreamHttpMethod": [ "POST", "PUT", "GET" ]
     }
   ]

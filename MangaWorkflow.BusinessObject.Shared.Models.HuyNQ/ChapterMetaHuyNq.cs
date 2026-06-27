@@ -13,5 +13,5 @@ public partial class ChapterMetaHuyNq
 
     public string Description { get; set; }
 
-    public virtual ICollection<ChapterHuyNq> ChapterHuyNqs { get; set; } = new List<ChapterHuyNq>();
+    //public virtual ICollection<ChapterHuyNq> ChapterHuyNqs { get; set; } = new List<ChapterHuyNq>();
 }
