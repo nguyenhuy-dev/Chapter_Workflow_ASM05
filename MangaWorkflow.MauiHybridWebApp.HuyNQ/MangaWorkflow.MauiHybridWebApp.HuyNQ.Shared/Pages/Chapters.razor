@@ -1,0 +1,198 @@
+@page "/chapters"
+@using System.Text
+@using System.Text.Json
+@using MangaWorkflow.BusinessObject.Shared.Models.HuyNQ
+
+<PageTitle>Chapters</PageTitle>
+
+<h1>Gửi Chapter qua Ocelot Gateway</h1>
+
+<EditForm Model="@ChapterVm" OnSubmit="async () => await OcelotSubmit()">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="rounded border p-3 h-100">
+                <h6>Chapter</h6>
+                <div class="mb-2">
+                    <label class="form-label">Chapter Id</label>
+                    <InputNumber class="form-control" @bind-Value="ChapterVm.HuynqId" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Title</label>
+                    <InputText class="form-control" @bind-Value="ChapterVm.Title" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Chapter Number</label>
+                    <InputNumber class="form-control" @bind-Value="ChapterVm.ChapterNumber" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Page Count</label>
+                    <InputNumber class="form-control" @bind-Value="ChapterVm.PageCount" />
+                </div>
+                <div class="form-check mb-2">
+                    <InputCheckbox class="form-check-input" @bind-Value="ChapterVm.Approved" />
+                    <label class="form-check-label">Approved</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="rounded border p-3 h-100">
+                <h6>Chapter Meta</h6>
+                <div class="mb-2">
+                    <label class="form-label">Meta Id</label>
+                    <InputNumber class="form-control" @bind-Value="ChapterVm.MetaId" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Code</label>
+                    <InputText class="form-control" @bind-Value="ChapterVm.MetaCode" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Description</label>
+                    <InputText class="form-control" @bind-Value="ChapterVm.MetaDescription" />
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="rounded border p-3 h-100 d-flex flex-column">
+                <button type="submit" class="btn btn-danger">Ocelot Submit</button>
+                <span class="text-danger mt-2">@Message</span>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+<hr />
+
+<table class="table table-responsive table-striped table-bordered">
+    <thead class="table-primary">
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Chapter No.</th>
+            <th>Page Count</th>
+            <th>Approved</th>
+            <th>Meta Code</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in ChapterList)
+        {
+            <tr>
+                <td>@item.HuynqId</td>
+                <td>@item.Title</td>
+                <td>@item.ChapterNumber</td>
+                <td>@item.PageCount</td>
+                <td>@item.Approved</td>
+                <td>@item.ChapterMetaHuynq?.Code</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    // Port HTTPS của Ocelot Gateway lấy từ launchSettings (https://localhost:7254).
+    // Android emulator: 10.0.2.2 là alias trỏ về localhost của máy host.
+    // Windows/iOS/Web host: dùng thẳng localhost.
+    // => Tự chọn host lúc runtime, không hardcode để chạy được trên mọi nền tảng.
+    private static string GatewayHost => OperatingSystem.IsAndroid() ? "10.0.2.2" : "localhost";
+    private static string GatewayChaptersUrl => $"https://{GatewayHost}:7254/gateway/Chapters";
+
+    public ChapterViewModel ChapterVm { get; set; } = new();
+    public List<ChapterHuyNq> ChapterList { get; set; } = new();
+    public string? Message { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Nạp danh sách chapter hiện có qua gateway (GET /gateway/Chapters -> /api/Chapters).
+        try
+        {
+            using var httpClient = CreateHttpClient();
+            var data = await httpClient.GetFromJsonAsync<List<ChapterHuyNq>>(GatewayChaptersUrl);
+            if (data is not null)
+            {
+                ChapterList = data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Message = "Không tải được danh sách: " + ex.Message;
+        }
+    }
+
+    private async Task OcelotSubmit()
+    {
+        try
+        {
+            // 1) Map ViewModel -> ChapterHuyNq (đúng kiểu [FromBody] ChapterHuyNq ở ChaptersController).
+            var chapter = new ChapterHuyNq
+            {
+                HuynqId = ChapterVm.HuynqId,
+                ChapterMetaHuynqId = ChapterVm.MetaId,
+                Title = ChapterVm.Title,
+                ChapterNumber = ChapterVm.ChapterNumber,
+                PageCount = ChapterVm.PageCount,
+                Approved = ChapterVm.Approved,
+                ReleaseDate = DateTime.Now,
+                ChapterMetaHuynq = new ChapterMetaHuyNq
+                {
+                    HuynqId = ChapterVm.MetaId,
+                    Code = ChapterVm.MetaCode,
+                    Description = ChapterVm.MetaDescription
+                }
+            };
+
+            using var httpClient = CreateHttpClient();
+
+            // 2) Serialize ĐÚNG object vừa build (bản mẫu serialize nhầm model rỗng).
+            var serializeContent = JsonSerializer.Serialize(chapter);
+            var content = new StringContent(serializeContent, Encoding.UTF8, "application/json");
+
+            // 3) POST qua Ocelot: /gateway/Chapters -> downstream /api/Chapters (publish RabbitMQ).
+            var response = await httpClient.PostAsync(GatewayChaptersUrl, content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Message = "Submit Chapter to Microservice success";
+                ChapterList.Add(chapter);
+                ChapterVm = new(); // reset form
+            }
+            else
+            {
+                Message = $"Submit Chapter to Microservice fail ({(int)response.StatusCode})";
+            }
+        }
+        catch (Exception ex)
+        {
+            Message = "Submit lỗi: " + ex.Message;
+        }
+    }
+
+    // Tạo HttpClient dùng chung cho GET/POST.
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new HttpClientHandler();
+
+        #region HuyNQ | Debug
+        // Bỏ qua kiểm tra chứng chỉ SSL của dev cert (self-signed) trên emulator.
+        // CHỈ dùng khi DEBUG/học tập, KHÔNG để ở production.
+        handler.ServerCertificateCustomValidationCallback =
+            (message, cert, chain, errors) => true;
+        #endregion
+
+        return new HttpClient(handler);
+    }
+
+    // ViewModel gom các field nhập từ form (tương đương OrderViewModel trong bản mẫu).
+    public sealed class ChapterViewModel
+    {
+        public int HuynqId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public int ChapterNumber { get; set; }
+        public int PageCount { get; set; }
+        public bool Approved { get; set; }
+        public int MetaId { get; set; }
+        public string MetaCode { get; set; } = string.Empty;
+        public string MetaDescription { get; set; } = string.Empty;
+    }
+}
